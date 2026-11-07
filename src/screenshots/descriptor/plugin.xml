@@ -1,0 +1,13 @@
+<idea-plugin>
+    <id>com.mouradzouabi.ldapclient.screenshots</id>
+    <name>LDAP Client Screenshot Driver</name>
+    <vendor>Mourad Zouabi</vendor>
+    <description>Development only: generates the Marketplace screenshots of LDAP Client. Never published.</description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.mouradzouabi.ldapclient</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="com.mouradzouabi.ldapclient.screenshots.ScreenshotDriver"/>
+    </extensions>
+</idea-plugin>

@@ -1,0 +1,122 @@
+<idea-plugin>
+    <id>com.mouradzouabi.ldapclient</id>
+    <name>LDAP Client</name>
+    <vendor url="https://github.com/zouabimourad">Mourad ZOUABI</vendor>
+
+    <description><![CDATA[
+    <p>
+      A complete LDAP browser and editor inside your IDE. Works with any LDAPv3 server, such as OpenLDAP,
+      Active Directory, 389 Directory Server or OpenDJ. Browse very large directories, search, edit entries with
+      schema-aware editors, and run LDIF scripts without leaving the IDE.
+      All directory operations run in the background, so the UI never freezes.
+    </p>
+
+    <h3>Connections</h3>
+    <ul>
+      <li>Manage any number of connections in the <b>LDAP</b> tool window, shown directly as tree roots (like the Database tool window). Connected servers are highlighted.</li>
+      <li>Plain LDAP, <b>LDAPS</b> or <b>StartTLS</b>, with optional hostname verification or trusting all certificates for test servers.</li>
+      <li>Anonymous or simple bind. Passwords are stored in the IDE password safe, never in settings files.</li>
+      <li>Base DNs can be fetched from the server's naming contexts. You can also set the page size, timeouts and connection pool size.</li>
+      <li><b>Read-only</b> connections protect production servers from accidental changes.</li>
+      <li><b>Test Connection</b> button in the connection dialog.</li>
+    </ul>
+
+    <h3>Efficient tree navigation</h3>
+    <ul>
+      <li>Children are loaded page by page with the Simple Paged Results control. A <i>Load more…</i> node fetches the next page, so containers with hundreds of thousands of entries open instantly.</li>
+      <li>Idle cursors release their connection and resume transparently.</li>
+      <li>Per-node child filters, for example <code>(uid=a*)</code>.</li>
+      <li>Icons for people, groups, organizational units and domains.</li>
+    </ul>
+
+    <h3>Search</h3>
+    <ul>
+      <li>Base, one-level or subtree scope, with an attribute list and a size limit.</li>
+      <li>The filter editor has syntax highlighting and completes attribute and object class names from the server schema.</li>
+      <li>Recent filters are remembered. Searches can be saved and re-run in one click.</li>
+      <li>Results stream into a spreadsheet-style table in the <b>LDAP Results</b> tool window. Cancelled searches are abandoned on the server.</li>
+      <li>Export results to LDIF, <b>bulk modify</b> the selected or all results (add, replace or delete attribute values), or compare two results.</li>
+    </ul>
+
+    <h3>Entry editor</h3>
+    <ul>
+      <li>Spreadsheet-style attribute grid with multi-valued attributes grouped together.</li>
+      <li>Required attributes are marked. Attributes not allowed by the entry's object classes are underlined.</li>
+      <li>Tooltips show the description, syntax and single- or multi-valued flag from the schema.</li>
+      <li>Pending changes are highlighted and saved in a single modify request, with an optional <b>LDIF preview</b> before saving.</li>
+      <li>Dedicated value editors:
+        <ul>
+          <li><b>Passwords</b>: hashing with SSHA-512 / SSHA-256 / SSHA / SHA / SMD5 / MD5, plain text, or Active Directory <code>unicodePwd</code>. You can generate a password and verify the current one.</li>
+          <li><b>Binary values</b>: hex dump, image preview (<code>jpegPhoto</code>), X.509 certificate details, objectGUID / objectSid decoding, and load from or save to file.</li>
+          <li>DN, integer, boolean and generalized time values, each with validation.</li>
+        </ul>
+      </li>
+      <li>Optional display of <b>operational attributes</b>.</li>
+      <li>Ctrl+Click (⌘+Click) on DN values such as <code>member</code>, <code>memberOf</code> or <code>manager</code> opens the referenced entry.</li>
+    </ul>
+
+    <h3>Entry operations</h3>
+    <ul>
+      <li>Create entries from LDIF or from a template generated from the chosen <b>object classes</b>.</li>
+      <li><b>Duplicate</b>, rename and delete entries, including recursive subtree delete.</li>
+      <li><b>Copy or move</b> an entry or a whole subtree, on the same connection or to another one (for example from staging to production). You choose what happens on conflicts.</li>
+      <li><b>Compare</b> two entries in the IDE diff viewer, even across servers.</li>
+      <li><b>Group membership</b>: show an entry's groups, including nested ones, and a group's members, including Active Directory ranged values and dynamic <code>groupOfURLs</code>.</li>
+      <li><b>Account status</b> for Active Directory, OpenLDAP ppolicy and 389 DS: see whether an account is disabled, locked out or has an expired password. You can unlock it, disable or enable it, or require a password change.</li>
+    </ul>
+
+    <h3>Schema browser</h3>
+    <ul>
+      <li>Object classes, attribute types, matching rules and syntaxes with a filter and cross-links.</li>
+      <li>Shows the inherited required and optional attributes of a class, and where an attribute type is used.</li>
+    </ul>
+
+    <h3>LDIF</h3>
+    <ul>
+      <li>Run LDIF scripts from a file or straight from the editor, including unsaved text and selections (Ctrl+Alt+Shift+X / ⌘⌥⇧X).</li>
+      <li>Supports <code>add</code>, <code>modify</code>, <code>delete</code>, <code>modrdn</code> / <code>moddn</code> and controls. Records without a changetype can be added or added-or-replaced.</li>
+      <li>Options to continue after errors or stop at the first one, and a validate-only dry run.</li>
+      <li>Per-record results; double-click a result to jump to its line in the script.</li>
+      <li>Export an entry, its children or a whole subtree. The export is streamed to disk and written parents-first, so it can be imported back directly.</li>
+      <li>LDIF syntax highlighting.</li>
+    </ul>
+
+    <h3>Safety and auditing</h3>
+    <ul>
+      <li>An optional change preview shows the exact LDIF before it is sent, with passwords masked.</li>
+      <li>The <b>operation log</b> lists every add, modify, delete and rename with its result and LDIF. It can be exported as an LDIF script.</li>
+      <li>Settings are under <i>Settings | Tools | LDAP Client</i>.</li>
+    </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="LDAP" anchor="right" icon="/icons/ldap.svg"
+                    factoryClass="com.mouradzouabi.ldapclient.ui.toolwindow.LdapToolWindowFactory"/>
+        <toolWindow id="LDAP Results" anchor="bottom" icon="/icons/ldap.svg" canCloseContents="true"
+                    factoryClass="com.mouradzouabi.ldapclient.ui.toolwindow.LdapResultsToolWindowFactory"/>
+        <fileType name="LDAP Entry" implementationClass="com.mouradzouabi.ldapclient.ui.editor.LdapEntryFileType"
+                  fieldName="INSTANCE"/>
+        <fileEditorProvider implementation="com.mouradzouabi.ldapclient.ui.editor.LdapEntryEditorProvider"/>
+        <fileEditorProvider implementation="com.mouradzouabi.ldapclient.ui.schema.LdapSchemaEditorProvider"/>
+        <notificationGroup id="LDAP Client" displayType="BALLOON"/>
+        <fileType name="LDIF" implementationClass="com.mouradzouabi.ldapclient.ui.ldif.LdifFileType" fieldName="INSTANCE"
+                  extensions="ldif"/>
+        <syntaxHighlighter key="LDIF" implementationClass="com.mouradzouabi.ldapclient.ui.ldif.LdifSyntaxHighlighter"/>
+        <editorNotificationProvider implementation="com.mouradzouabi.ldapclient.ui.ldif.LdifEditorNotificationProvider"/>
+        <applicationConfigurable parentId="tools" id="com.mouradzouabi.ldapclient.settings" displayName="LDAP Client"
+                                 instance="com.mouradzouabi.ldapclient.ui.settings.LdapClientConfigurable"/>
+    </extensions>
+
+    <actions>
+        <action id="LdapClient.RunLdif" class="com.mouradzouabi.ldapclient.ui.ldif.RunLdifAction"
+                text="Run LDIF Script…" description="Run this LDIF script (or the selection) on an LDAP connection"
+                icon="AllIcons.Actions.Execute">
+            <keyboard-shortcut keymap="$default" first-keystroke="control alt shift X"/>
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta alt shift X" replace-all="true"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

@@ -1,0 +1,62 @@
+# Onboarding of the new Lyon contractors team
+version: 1
+
+dn: ou=contractors,dc=acme,dc=example
+changetype: add
+objectClass: top
+objectClass: organizationalUnit
+ou: contractors
+description: External contractors
+
+dn: uid=lucas.girard,ou=contractors,dc=acme,dc=example
+changetype: add
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: lucas.girard
+cn: Lucas Girard
+sn: Girard
+givenName: Lucas
+mail: lucas.girard@partner.example
+title: DevOps Consultant
+l: Lyon
+userPassword: {SSHA}g8XyB4n9r1Xr9i6m0w3sJQ7Yv1lqZm9vYmFy
+
+dn: uid=ines.benali,ou=contractors,dc=acme,dc=example
+changetype: add
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: ines.benali
+cn: Ines Benali
+sn: Benali
+givenName: Ines
+mail: ines.benali@partner.example
+title: Security Auditor
+l: Lyon
+
+dn: cn=vpn-users,ou=groups,dc=acme,dc=example
+changetype: modify
+add: uniqueMember
+uniqueMember: uid=lucas.girard,ou=contractors,dc=acme,dc=example
+uniqueMember: uid=ines.benali,ou=contractors,dc=acme,dc=example
+-
+
+dn: uid=alice.martin,ou=people,dc=acme,dc=example
+changetype: modify
+replace: title
+title: Head of Platform
+-
+add: description
+description: Sponsor of the contractors team
+-
+
+dn: cn=grafana,ou=services,dc=acme,dc=example
+changetype: modrdn
+newrdn: cn=observability
+deleteoldrdn: 1
+
+dn: cn=jenkins,ou=services,dc=acme,dc=example
+changetype: delete
