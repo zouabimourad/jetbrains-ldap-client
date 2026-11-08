@@ -23,21 +23,21 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 
     intellijPlatform {
-        intellijIdeaCommunity(providers.gradleProperty("platformVersion"))
+        intellijIdea(providers.gradleProperty("platformVersion"))
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
     }
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
+        jvmTarget.set(JvmTarget.JVM_25)
         // Align with the Kotlin stdlib bundled in the target IDE.
         apiVersion.set(KotlinVersion.KOTLIN_2_2)
         languageVersion.set(KotlinVersion.KOTLIN_2_2)
@@ -85,6 +85,12 @@ intellijPlatform {
 val screenshots: SourceSet = sourceSets.create("screenshots") {
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
 }
+
+// PasswordSafeSettings (used by the driver to avoid the OS keychain) lives in a separate module since 2025.3.
+dependencies.add(
+    "screenshotsCompileOnly",
+    files(provider { intellijPlatform.platformPath.resolve("lib/intellij.platform.credentialStore.impl.jar") }),
+)
 
 kotlin.target.compilations.named("screenshots") {
     associateWith(kotlin.target.compilations.getByName("main"))

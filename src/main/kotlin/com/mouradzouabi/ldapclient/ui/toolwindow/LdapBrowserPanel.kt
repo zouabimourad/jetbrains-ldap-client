@@ -9,6 +9,7 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CustomShortcutSet
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.application.ApplicationManager
@@ -54,10 +55,18 @@ import com.mouradzouabi.ldapclient.ui.search.SearchResultsPanel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.awt.datatransfer.Clipboard
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.Transferable
+import java.awt.datatransfer.UnsupportedFlavorException
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
+import javax.swing.DropMode
 import javax.swing.Icon
+import javax.swing.JComponent
+import javax.swing.JTree
+import javax.swing.TransferHandler
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeWillExpandListener
 import javax.swing.tree.DefaultTreeModel
@@ -88,6 +97,13 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
     }
     private val removeConnectionAction = action("Remove Connection", AllIcons.General.Remove, { selectedNode is ConnectionNode }) {
         (selectedNode as? ConnectionNode)?.let(::removeConnection)
+    }
+    private val moveUpAction = action("Move Up", AllIcons.Actions.MoveUp, { connectionIndex(selectedNode) > 0 }, { selectedNode is ConnectionNode }) {
+        moveSelectedConnection(-1)
+    }
+    private val moveDownAction = action("Move Down", AllIcons.Actions.MoveDown,
+        { connectionIndex(selectedNode).let { it >= 0 && it < root.childCount - 1 } }, { selectedNode is ConnectionNode }) {
+        moveSelectedConnection(1)
     }
     private val connectAction = action("Connect", AllIcons.Actions.Execute, {
         selectedConnection?.let { !manager.isConnected(it.configId) && !manager.isConnecting(it.configId) } == true
@@ -242,6 +258,12 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
         setToolbar(toolbar.component)
         setContent(ScrollPaneFactory.createScrollPane(tree, true))
         PopupHandler.installPopupMenu(tree, createPopupGroup(), "LdapBrowserPopup")
+        val actionManager = ActionManager.getInstance()
+        moveUpAction.registerCustomShortcutSet(actionManager.getAction("MoveStatementUp")?.shortcutSet ?: CustomShortcutSet.EMPTY, tree)
+        moveDownAction.registerCustomShortcutSet(actionManager.getAction("MoveStatementDown")?.shortcutSet ?: CustomShortcutSet.EMPTY, tree)
+        tree.transferHandler = ConnectionTransferHandler(tree.transferHandler)
+        tree.dragEnabled = true
+        tree.dropMode = DropMode.ON
 
         ApplicationManager.getApplication().messageBus.connect(this).subscribe(LdapListener.TOPIC, object : LdapListener {
             override fun connectionsChanged() = syncConnections()
@@ -303,7 +325,75 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
                 model.nodeChanged(node)
             }
         }
+        reorderConnections(configs.map { it.id })
         if (root.childCount > 0 && tree.selectionPath == null) tree.expandPath(TreePath(root))
+    }
+
+    /** Moves connection nodes to match [ids], keeping their expanded subtrees and the selection. */
+    private fun reorderConnections(ids: List<String>) {
+        ids.forEachIndexed { index, id ->
+            val node = connectionNode(id) ?: return@forEachIndexed
+            if (root.getIndex(node) == index) return@forEachIndexed
+            val path = TreePath(node.path)
+            val expanded = tree.getExpandedDescendants(path)?.toList().orEmpty()
+            val selected = tree.selectionPath?.takeIf { path.isDescendant(it) }
+            model.removeNodeFromParent(node)
+            model.insertNodeInto(node, root, minOf(index, root.childCount))
+            expanded.forEach(tree::expandPath)
+            selected?.let {
+                tree.selectionPath = it
+                tree.scrollPathToVisible(it)
+            }
+        }
+    }
+
+    private fun connectionIndex(node: LdapTreeNode?): Int = if (node is ConnectionNode && node.parent === root) root.getIndex(node) else -1
+
+    private fun moveSelectedConnection(delta: Int) {
+        val node = selectedNode as? ConnectionNode ?: return
+        val index = connectionIndex(node)
+        if (index >= 0) settings.moveConnection(node.configId, index + delta)
+    }
+
+    /** Drag a connection onto another one to take its place. Other nodes are not draggable. */
+    private inner class ConnectionTransferHandler(private val delegate: TransferHandler?) : TransferHandler() {
+        private var draggedId: String? = null
+
+        override fun getSourceActions(c: JComponent): Int = if (selectedNode is ConnectionNode) MOVE else NONE
+
+        override fun createTransferable(c: JComponent): Transferable? {
+            val id = (selectedNode as? ConnectionNode)?.configId ?: return null
+            draggedId = id
+            return object : Transferable {
+                override fun getTransferDataFlavors() = arrayOf(CONNECTION_FLAVOR)
+                override fun isDataFlavorSupported(flavor: DataFlavor) = flavor == CONNECTION_FLAVOR
+                override fun getTransferData(flavor: DataFlavor): Any =
+                    if (flavor == CONNECTION_FLAVOR) id else throw UnsupportedFlavorException(flavor)
+            }
+        }
+
+        override fun exportDone(source: JComponent, data: Transferable?, action: Int) {
+            draggedId = null
+        }
+
+        private fun target(support: TransferSupport): ConnectionNode? {
+            if (!support.isDrop || !support.isDataFlavorSupported(CONNECTION_FLAVOR)) return null
+            val node = (support.dropLocation as? JTree.DropLocation)?.path?.lastPathComponent as? ConnectionNode ?: return null
+            return node.takeIf { draggedId != null && it.configId != draggedId }
+        }
+
+        override fun canImport(support: TransferSupport): Boolean = target(support) != null
+
+        override fun importData(support: TransferSupport): Boolean {
+            val target = target(support) ?: return false
+            settings.moveConnection(draggedId ?: return false, root.getIndex(target))
+            return true
+        }
+
+        // Keep the tree's original clipboard behavior.
+        override fun exportToClipboard(comp: JComponent, clip: Clipboard, action: Int) {
+            delegate?.exportToClipboard(comp, clip, action)
+        }
     }
 
     private fun connect(node: ConnectionNode) {
@@ -647,6 +737,8 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
         add(connectAction)
         add(disconnectAction)
         add(editConnectionAction)
+        add(moveUpAction)
+        add(moveDownAction)
         add(schemaAction)
     }
 
@@ -656,5 +748,6 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
 
     companion object {
         val TREE_ATTRIBUTES = listOf("objectClass", "hasSubordinates", "numSubordinates")
+        private val CONNECTION_FLAVOR = DataFlavor("${DataFlavor.javaJVMLocalObjectMimeType};class=java.lang.String", "LDAP connection")
     }
 }

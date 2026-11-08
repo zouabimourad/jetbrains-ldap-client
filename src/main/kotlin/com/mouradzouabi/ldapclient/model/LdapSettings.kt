@@ -51,6 +51,18 @@ class LdapSettings : PersistentStateComponent<LdapSettings.SettingsState> {
         LdapEvents.fire { it.connectionsChanged() }
     }
 
+    /** Moves the connection [id] to position [index] of the list. */
+    fun moveConnection(id: String, index: Int) {
+        synchronized(lock) {
+            val from = state.connections.indexOfFirst { it.id == id }
+            if (from < 0) return
+            val to = index.coerceIn(0, state.connections.lastIndex)
+            if (from == to) return
+            state.connections.add(to, state.connections.removeAt(from))
+        }
+        LdapEvents.fire { it.connectionsChanged() }
+    }
+
     var showOperationalAttributes: Boolean
         get() = synchronized(lock) { state.showOperationalAttributes }
         set(value) {

@@ -14,6 +14,7 @@
     <h3>Connections</h3>
     <ul>
       <li>Manage any number of connections in the <b>LDAP</b> tool window, shown directly as tree roots (like the Database tool window). Connected servers are highlighted.</li>
+      <li>Reorder connections with drag and drop or <b>Move Up / Move Down</b>.</li>
       <li>Plain LDAP, <b>LDAPS</b> or <b>StartTLS</b>, with optional hostname verification or trusting all certificates for test servers.</li>
       <li>Anonymous or simple bind. Passwords are stored in the IDE password safe, never in settings files.</li>
       <li>Base DNs can be fetched from the server's naming contexts. You can also set the page size, timeouts and connection pool size.</li>

@@ -10,7 +10,7 @@ import com.intellij.psi.tree.IElementType
 class LdifSyntaxHighlighter : SyntaxHighlighterBase() {
     override fun getHighlightingLexer(): Lexer = LdifLexer()
 
-    override fun getTokenHighlights(tokenType: IElementType?): Array<TextAttributesKey> = pack(KEYS[tokenType])
+    override fun getTokenHighlights(tokenType: IElementType): Array<TextAttributesKey> = pack(KEYS[tokenType])
 
     companion object {
         val COMMENT = createTextAttributesKey("LDIF_COMMENT", Colors.LINE_COMMENT)

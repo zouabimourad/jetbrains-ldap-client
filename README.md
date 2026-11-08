@@ -1,6 +1,6 @@
 # LDAP Client for IntelliJ
 
-A complete LDAP browser and editor for IntelliJ-based IDEs (IntelliJ IDEA, PyCharm, WebStorm, GoLand, … 2025.2 and later).
+A complete LDAP browser and editor for IntelliJ-based IDEs (IntelliJ IDEA, PyCharm, WebStorm, GoLand, … 2026.3 and later).
 It works with any LDAPv3 server, such as OpenLDAP, Active Directory, 389 Directory Server or OpenDJ.
 
 Browse very large directories, search, edit entries with schema-aware editors, and run LDIF scripts, all without leaving the IDE.
@@ -21,6 +21,7 @@ Every directory operation runs in the background, so the UI never freezes.
 
 ### Connections
 - Any number of connections, shown directly as roots of the **LDAP** tool window tree (like the Database tool window). Connected servers have a green dot and bold text.
+- Reorder connections by dragging one onto another, or with **Move Up / Move Down** in the context menu.
 - Plain LDAP, **LDAPS** or **StartTLS**. Hostname verification is optional, and *Trust all certificates* is available for test servers.
 - Anonymous or simple bind. Passwords are kept in the IDE password safe, never in settings files.
 - One or more base DNs, separated by `|`. When empty, the server's naming contexts are used, and **Fetch…** reads them from the root DSE.
@@ -141,6 +142,7 @@ It summarizes whether the account is active, disabled, locked or has an expired 
 | Action | Windows / Linux | macOS |
 |---|---|---|
 | Open the selected tree entry | Enter / double-click | Enter / double-click |
+| Move the selected connection up / down | Ctrl+Shift+Up / Down | ⌘⇧↑ / ⌘⇧↓ |
 | Save entry changes | Ctrl+S | ⌘S |
 | Edit value | F2 / double-click | F2 / double-click |
 | Delete value | Delete | ⌫ |
@@ -175,7 +177,7 @@ Built on the [UnboundID LDAP SDK](https://github.com/pingidentity/ldapsdk) and t
 ./gradlew test          # unit tests (in-memory LDAP server)
 ./gradlew buildPlugin   # build/distributions/ldap-client-*.zip
 ```
-Requires JDK 21. Open the **LDAP** tool window (right side) and add a connection with **+**. Search results and LDIF runs open as tabs in the **LDAP Results** tool window (bottom), which appears when needed.
+Requires JDK 25. Open the **LDAP** tool window (right side) and add a connection with **+**. Search results and LDIF runs open as tabs in the **LDAP Results** tool window (bottom), which appears when needed.
 
 ## Publishing to JetBrains Marketplace
 

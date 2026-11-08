@@ -114,7 +114,7 @@ class LdapFilterLexer : LexerBase() {
 class LdapFilterHighlighter : SyntaxHighlighterBase() {
     override fun getHighlightingLexer() = LdapFilterLexer()
 
-    override fun getTokenHighlights(tokenType: IElementType?): Array<TextAttributesKey> = pack(KEYS[tokenType])
+    override fun getTokenHighlights(tokenType: IElementType): Array<TextAttributesKey> = pack(KEYS[tokenType])
 
     companion object {
         private val KEYS = mapOf(

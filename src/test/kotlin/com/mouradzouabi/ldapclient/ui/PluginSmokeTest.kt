@@ -78,4 +78,40 @@ class PluginSmokeTest : BasePlatformTestCase() {
         PlatformTestUtil.waitWithEventsDispatching("entry not loaded", { editor.isLoaded }, 10)
         assertFalse(editor.isModified)
     }
+
+    fun testReorderConnections() {
+        val settings = LdapSettings.getInstance()
+        val other = LdapConnectionConfig().apply { name = "other" }
+        settings.addOrUpdate(other)
+        try {
+            val panel = LdapBrowserPanel(project)
+            Disposer.register(testRootDisposable, panel)
+            PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
+            fun order() = (0 until panel.tree.model.getChildCount(panel.tree.model.root))
+                .map { (panel.tree.model.getChild(panel.tree.model.root, it) as com.mouradzouabi.ldapclient.ui.toolwindow.ConnectionNode).configId }
+                .filter { it == config.id || it == other.id }
+            assertEquals(listOf(config.id, other.id), order())
+
+            val tree = panel.tree
+            val node = (0 until tree.model.getChildCount(tree.model.root)).map { tree.model.getChild(tree.model.root, it) }
+                .first { (it as com.mouradzouabi.ldapclient.ui.toolwindow.ConnectionNode).configId == config.id }
+                as com.mouradzouabi.ldapclient.ui.toolwindow.ConnectionNode
+            val path = javax.swing.tree.TreePath(node.path)
+            tree.expandPath(path)
+            PlatformTestUtil.waitWithEventsDispatching("not connected", { node.populated }, 10)
+            val base = path.pathByAddingChild(node.firstChild)
+            tree.expandPath(base)
+            tree.selectionPath = base
+
+            settings.moveConnection(other.id, settings.connections.indexOfFirst { it.id == config.id })
+            PlatformTestUtil.dispatchAllEventsInIdeEventQueue()
+            assertEquals(listOf(other.id, config.id), order())
+            assertEquals(listOf(other.id, config.id), settings.connections.map { it.id }.filter { it == config.id || it == other.id })
+            assertTrue(tree.isExpanded(path))
+            assertTrue(tree.isExpanded(base))
+            assertEquals(base, tree.selectionPath)
+        } finally {
+            settings.remove(other.id)
+        }
+    }
 }
