@@ -79,6 +79,22 @@ class PluginSmokeTest : BasePlatformTestCase() {
         assertFalse(editor.isModified)
     }
 
+    fun testSavedSearchRoundTrip() {
+        val params = com.mouradzouabi.ldapclient.ui.search.SearchParams(
+            config.id, config.displayName, "dc=example,dc=com", com.unboundid.ldap.sdk.SearchScope.ONE, "(cn=a*)",
+            com.mouradzouabi.ldapclient.ui.search.SearchParams.parseAttributes("cn, sn", true), 50, true,
+        )
+        assertEquals("Search: (cn=a*)", params.title)
+        val saved = params.toSavedSearch("People A")
+        assertEquals("cn, sn", saved.attributes)
+        val restored = com.mouradzouabi.ldapclient.ui.search.SearchParams.of(saved)!!
+        assertEquals("People A", restored.savedName)
+        assertEquals("People A", restored.title)
+        assertTrue(restored.sameQuery(params))
+        assertFalse(restored.sameQuery(params.copy(filter = "(cn=b*)")))
+        assertFalse(restored.sameQuery(params.copy(sizeLimit = 10)))
+    }
+
     fun testReorderConnections() {
         val settings = LdapSettings.getInstance()
         val other = LdapConnectionConfig().apply { name = "other" }
@@ -102,6 +118,9 @@ class PluginSmokeTest : BasePlatformTestCase() {
             val base = path.pathByAddingChild(node.firstChild)
             tree.expandPath(base)
             tree.selectionPath = base
+            val baseNode = base.lastPathComponent as com.mouradzouabi.ldapclient.ui.toolwindow.EntryNode
+            PlatformTestUtil.waitWithEventsDispatching("children not loaded", { baseNode.loadState == com.mouradzouabi.ldapclient.ui.toolwindow.LoadState.LOADED }, 10)
+            assertTrue(tree.isExpanded(base))
 
             settings.moveConnection(other.id, settings.connections.indexOfFirst { it.id == config.id })
             PlatformTestUtil.dispatchAllEventsInIdeEventQueue()

@@ -93,6 +93,9 @@ class BulkModifyDialog(
         )
     }
 
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
+
     override fun doValidate(): ValidationInfo? {
         val op = operation.selectedItem as BulkOperation
         return when {

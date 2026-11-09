@@ -34,8 +34,9 @@
     <ul>
       <li>Base, one-level or subtree scope, with an attribute list and a size limit.</li>
       <li>The filter editor has syntax highlighting and completes attribute and object class names from the server schema.</li>
-      <li>Recent filters are remembered. Searches can be saved and re-run in one click.</li>
+      <li>Recent filters are remembered. Searches can be saved and re-run in one click from a dropdown grouped by connection.</li>
       <li>Results stream into a spreadsheet-style table in the <b>LDAP Results</b> tool window. Cancelled searches are abandoned on the server.</li>
+      <li>Edit a search from its results tab and run it again in place. Saved searches reuse their own tab.</li>
       <li>Export results to LDIF, <b>bulk modify</b> the selected or all results (add, replace or delete attribute values), or compare two results.</li>
     </ul>
 

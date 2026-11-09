@@ -54,6 +54,9 @@ class AddAttributeDialog(
 
     val attributeName: String get() = (combo.editor.item as? String ?: combo.selectedItem as? String).orEmpty().trim()
 
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
+
     override fun doValidate(): ValidationInfo? {
         val name = attributeName
         if (!Regex("^([A-Za-z][A-Za-z0-9-]*|[0-9]+(\\.[0-9]+)*)(;[A-Za-z0-9-]+)*$").matches(name)) {

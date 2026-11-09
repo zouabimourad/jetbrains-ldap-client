@@ -58,6 +58,9 @@ class ObjectClassChooser(private val schema: LdapSchema) : DialogWrapper(true) {
 
     override fun getPreferredFocusedComponent(): JComponent = list
 
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
+
     override fun doValidate(): ValidationInfo? {
         val s = schema.schema ?: return null
         val structural = selected.count { s.getObjectClass(it)?.getObjectClassType(s) == ObjectClassType.STRUCTURAL }

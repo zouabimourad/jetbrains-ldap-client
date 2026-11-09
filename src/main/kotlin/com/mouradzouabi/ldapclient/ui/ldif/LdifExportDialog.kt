@@ -74,6 +74,9 @@ class LdifExportDialog(
         dialog.save(baseDir, current.fileName?.toString())?.file?.let { fileField.text = it.path }
     }
 
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
+
     override fun doValidate(): ValidationInfo? {
         try {
             Filter.create(filterField.text.trim().ifEmpty { DEFAULT_FILTER })

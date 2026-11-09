@@ -11,6 +11,7 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CustomShortcutSet
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.DumbAware
@@ -185,7 +186,7 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
     private val operationLogAction = action("Operation Log", AllIcons.Vcs.History) { OperationLogPanel.show(project) }
 
     /** Dropdown listing the saved searches; each one runs directly. */
-    private val savedSearchesGroup = object : ActionGroup("Saved Searches", "Run a saved search", AllIcons.Nodes.Favorite), DumbAware {
+    private val savedSearchesGroup = object : ActionGroup("Saved Searches", "Run a saved search", AllIcons.Actions.ListFiles), DumbAware {
         init {
             templatePresentation.isPopupGroup = true
         }
@@ -195,17 +196,35 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
             e.presentation.isEnabled = settings.savedSearches.isNotEmpty()
         }
 
-        override fun getChildren(e: AnActionEvent?): Array<AnAction> = settings.savedSearches.map { saved ->
-            val connection = settings.find(saved.configId)?.displayName ?: "unknown connection"
-            object : DumbAwareAction(saved.name, "$connection: ${saved.filter}", null) {
+        /** Saved searches grouped under their connection, in connection order; those of deleted connections last, disabled. */
+        override fun getChildren(e: AnActionEvent?): Array<AnAction> {
+            val byConnection = settings.savedSearches.groupBy { it.configId }
+            val connections = settings.connections
+            val children = mutableListOf<AnAction>()
+            for (connection in connections) {
+                val searches = byConnection[connection.id] ?: continue
+                children += Separator.create(connection.displayName)
+                searches.forEach { children += savedSearchAction(it, enabled = true) }
+            }
+            val orphans = byConnection.filterKeys { id -> connections.none { it.id == id } }.values.flatten()
+            if (orphans.isNotEmpty()) {
+                children += Separator.create("Deleted connections")
+                orphans.forEach { children += savedSearchAction(it, enabled = false) }
+            }
+            return children.toTypedArray()
+        }
+
+        private fun savedSearchAction(saved: com.mouradzouabi.ldapclient.model.SavedSearch, enabled: Boolean) =
+            object : DumbAwareAction(saved.name, "${saved.baseDn.ifEmpty { "first base DN" }}: ${saved.filter}", null) {
                 override fun getActionUpdateThread() = ActionUpdateThread.BGT
+                override fun update(e: AnActionEvent) {
+                    e.presentation.isEnabled = enabled
+                }
+
                 override fun actionPerformed(e: AnActionEvent) {
-                    val params = SearchParams.of(saved)
-                    if (params == null) LdapNotifications.error(project, "Saved search", "The connection of '${saved.name}' no longer exists")
-                    else SearchResultsPanel.show(project, params)
+                    SearchParams.of(saved)?.let { SearchResultsPanel.show(project, it) }
                 }
             }
-        }.toTypedArray()
     }
 
     private val operationalToggle = object : ToggleAction("Show Operational Attributes", "Show operational attributes in entry editors", AllIcons.Actions.ToggleVisibility) {
@@ -495,8 +514,9 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
             node.loadedCount = 0
             showPlaceholder(node, StatusNode("Loading…", StatusNode.Kind.LOADING))
         } else {
-            removeTransientChildren(node)
+            val stale = transientChildren(node)
             model.insertNodeInto(StatusNode("Loading…", StatusNode.Kind.LOADING), node, node.childCount)
+            stale.forEach { model.removeNodeFromParent(it) }
         }
         node.loadState = LoadState.LOADING
         val generation = node.generation
@@ -519,7 +539,8 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
     }
 
     private fun applyPage(node: EntryNode, cursor: PagedSearch, result: Result<List<EntryNode>>) {
-        removeTransientChildren(node)
+        // Remove placeholders only after adding new nodes: a node left without children is collapsed by JTree.
+        val stale = transientChildren(node)
         result.onSuccess { children ->
             val start = node.childCount
             children.forEach { node.add(it) }
@@ -542,14 +563,12 @@ class LdapBrowserPanel(private val project: Project) : SimpleToolWindowPanel(tru
             model.insertNodeInto(StatusNode(LdapErrors.describe(e), StatusNode.Kind.ERROR), node, node.childCount)
             if (node.loadedCount > 0) model.insertNodeInto(LoadMoreNode(node), node, node.childCount)
         }
+        stale.forEach { model.removeNodeFromParent(it) }
         model.nodeChanged(node)
     }
 
-    private fun removeTransientChildren(node: EntryNode) {
-        node.children().toList()
-            .filter { it is StatusNode || it is LoadMoreNode }
-            .forEach { model.removeNodeFromParent(it as MutableTreeNode) }
-    }
+    private fun transientChildren(node: EntryNode): List<MutableTreeNode> =
+        node.children().toList().filter { it is StatusNode || it is LoadMoreNode }.map { it as MutableTreeNode }
 
     private fun toChildNode(configId: String, entry: SearchResultEntry): EntryNode {
         val hasSubordinates = entry.getAttributeValue("hasSubordinates")

@@ -22,6 +22,7 @@ import com.intellij.ui.ScrollPaneFactory
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
 import com.unboundid.ldap.sdk.Filter
 import com.unboundid.ldap.sdk.SearchResultEntry
 import com.unboundid.ldif.LDIFWriter
@@ -57,14 +58,19 @@ import kotlin.coroutines.cancellation.CancellationException
  * Streams search results into a table. Entries arrive on the LDAP reader thread, are queued and
  * flushed to the table in batches on the EDT, so huge result sets never freeze the UI.
  */
-class SearchResultsPanel(private val project: Project, private val params: SearchParams) :
+class SearchResultsPanel(private val project: Project, params: SearchParams) :
     SimpleToolWindowPanel(true, true), Disposable {
 
+    var params: SearchParams = params
+        private set
     private val scope = LdapProjectService.getInstance(project).childScope(this)
-    private val model = ResultsModel(params.attributes)
+    private var model = ResultsModel(params.attributes)
     private val table = JBTable(model)
+    private val header = JBLabel()
     private val status = JBLabel()
     private var job: Job? = null
+    /** Incremented by every run so that a cancelled run doesn't touch the table or status of the next one. */
+    private var generation = 0
     private var lastColumnFitWidth = 0
     private var schema = LdapSchema(null)
 
@@ -82,6 +88,8 @@ class SearchResultsPanel(private val project: Project, private val params: Searc
         val toolbar = ActionManager.getInstance().createActionToolbar("LdapSearchResults", DefaultActionGroup().apply {
             add(action("Rerun", AllIcons.Actions.Rerun, { job?.isActive != true }) { run() })
             add(action("Stop", AllIcons.Actions.Suspend, { job?.isActive == true }) { job?.cancel() })
+            add(action("Edit Search…", AllIcons.Actions.Edit, { true }) { editSearch() })
+            add(action("Save Search…", AllIcons.Actions.MenuSaveall, { true }) { saveSearch() })
             addSeparator()
             add(action("Open Entry", AllIcons.Actions.EditSource, { table.selectedRow >= 0 }) { openSelected() })
             add(action("Copy DN", AllIcons.Actions.Copy, { table.selectedRow >= 0 }) {
@@ -100,6 +108,10 @@ class SearchResultsPanel(private val project: Project, private val params: Searc
             override fun componentResized(e: ComponentEvent) = fillLastColumn()
         })
         content.add(scrollPane, BorderLayout.CENTER)
+        header.foreground = UIUtil.getContextHelpForeground()
+        header.border = JBUI.Borders.empty(3, 6)
+        content.add(header, BorderLayout.NORTH)
+        updateHeader()
         status.border = JBUI.Borders.empty(2, 6)
         content.add(status, BorderLayout.SOUTH)
         setContent(content)
@@ -172,16 +184,52 @@ class SearchResultsPanel(private val project: Project, private val params: Searc
         EntryOperations.open(project, params.configId, model.entries[row].dn)
     }
 
+    private fun editSearch() {
+        val dialog = SearchDialog(project, params.configId, params.baseDn, params)
+        if (dialog.showAndGet()) rerun(dialog.params)
+    }
+
+    private fun saveSearch() {
+        val name = SavedSearchPrompt.save(this, params.toSavedSearch(""), params.savedName, params.filter) ?: return
+        params = params.copy(savedName = name)
+        updateHeader()
+    }
+
+    /** Runs [newParams] in this tab, replacing the current search. */
+    fun rerun(newParams: SearchParams) {
+        job?.cancel()
+        if (newParams.attributes != params.attributes) {
+            model = ResultsModel(newParams.attributes)
+            table.model = model
+        }
+        params = newParams
+        updateHeader()
+        run()
+    }
+
+    private fun updateHeader() {
+        header.text = params.summary
+        header.toolTipText = params.summary
+        LdapResultsToolWindowFactory.toolWindow(project)?.contentManager?.getContent(this)?.let {
+            it.displayName = params.title
+            it.description = params.summary
+        }
+    }
+
     fun run() {
         job?.cancel()
+        val runGeneration = ++generation
+        val params = params
+        val model = model
         model.clear()
         status.icon = AnimatedIcon.Default.INSTANCE
         status.text = "Searching…"
         val started = System.currentTimeMillis()
         job = scope.launch(UiDispatcher) {
             val queue = ConcurrentLinkedQueue<SearchResultEntry>()
+            fun current() = runGeneration == generation
             fun flush() {
-                if (queue.isEmpty()) return
+                if (queue.isEmpty() || !current()) return
                 val batch = ArrayList<SearchResultEntry>()
                 while (true) batch += queue.poll() ?: break
                 val before = model.rowCount
@@ -208,6 +256,7 @@ class SearchResultsPanel(private val project: Project, private val params: Searc
                 val outcome = session.search(spec, params.sizeLimit) { queue.add(it) }
                 flusher.cancel()
                 flush()
+                if (!current()) return@launch
                 status.icon = if (outcome.truncated) AllIcons.General.Warning else AllIcons.General.InspectionsOK
                 status.text = buildString {
                     append("${outcome.count} entries in ${System.currentTimeMillis() - started} ms")
@@ -216,14 +265,18 @@ class SearchResultsPanel(private val project: Project, private val params: Searc
             } catch (e: CancellationException) {
                 flusher.cancel()
                 flush()
-                status.icon = AllIcons.General.Information
-                status.text = "Stopped — ${model.rowCount} entries"
+                if (current()) {
+                    status.icon = AllIcons.General.Information
+                    status.text = "Stopped — ${model.rowCount} entries"
+                }
                 throw e
             } catch (e: Exception) {
                 flusher.cancel()
                 flush()
-                status.icon = AllIcons.General.Error
-                status.text = LdapErrors.describe(e)
+                if (current()) {
+                    status.icon = AllIcons.General.Error
+                    status.text = LdapErrors.describe(e)
+                }
             }
         }
     }
@@ -294,10 +347,21 @@ class SearchResultsPanel(private val project: Project, private val params: Searc
         private const val FIT_SAMPLE_ROWS = 200
         private const val MAX_FIT_WIDTH = 420
 
+        /** Shows the results of [params], reusing the tab of the same saved search or of an identical search. */
         fun show(project: Project, params: SearchParams) {
+            val toolWindow = LdapResultsToolWindowFactory.toolWindow(project)
+            val existing = toolWindow?.contentManager?.contents?.firstOrNull { content ->
+                val shown = (content.component as? SearchResultsPanel)?.params ?: return@firstOrNull false
+                if (params.savedName != null) shown.savedName == params.savedName else shown.savedName == null && shown.sameQuery(params)
+            }
+            if (existing != null) {
+                toolWindow.contentManager.setSelectedContent(existing)
+                toolWindow.activate(null)
+                (existing.component as SearchResultsPanel).rerun(params)
+                return
+            }
             val panel = SearchResultsPanel(project, params)
-            val title = "Search: ${params.filter}".let { if (it.length > 40) it.take(39) + "…" else it }
-            LdapResultsToolWindowFactory.show(project, panel, title, "${params.connectionName}: ${params.baseDn} ${params.filter}", panel)
+            LdapResultsToolWindowFactory.show(project, panel, params.title, params.summary, panel)
             panel.run()
         }
     }

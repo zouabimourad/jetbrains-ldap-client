@@ -89,6 +89,9 @@ class NewEntryDialog(
         *ldifArea.text.lines().filter { it.isNotBlank() && !it.startsWith("#") }.toTypedArray(),
     )
 
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
+
     override fun doValidate(): ValidationInfo? = try {
         val entry = parse()
         val empty = EntryTemplate.emptyAttributes(entry)

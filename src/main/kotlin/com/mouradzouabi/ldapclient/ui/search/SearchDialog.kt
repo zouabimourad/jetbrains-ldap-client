@@ -40,7 +40,39 @@ data class SearchParams(
     val attributes: List<String>,
     val sizeLimit: Int,
     val includeOperational: Boolean,
+    /** Name of the saved search these parameters come from, if unchanged. */
+    val savedName: String? = null,
 ) {
+    /** The attribute list as typed in the search dialog. */
+    val attributesText: String get() = attributes.filterNot { includeOperational && it == "+" }.joinToString(", ")
+
+    val title: String get() = savedName ?: "Search: $filter".let { if (it.length > 40) it.take(39) + "…" else it }
+
+    val summary: String
+        get() {
+            val scopeText = when (scope) {
+                SearchScope.ONE -> "one level"
+                SearchScope.BASE -> "base object"
+                else -> "subtree"
+            }
+            return "$connectionName  ·  ${baseDn.ifEmpty { "first base DN" }}  ·  $scopeText  ·  $filter"
+        }
+
+    /** Same search, ignoring the display-only connection name and saved search name. */
+    fun sameQuery(other: SearchParams) =
+        copy(connectionName = "", savedName = null) == other.copy(connectionName = "", savedName = null)
+
+    fun toSavedSearch(name: String, attributesText: String = this.attributesText) = SavedSearch().also {
+        it.name = name
+        it.configId = configId
+        it.baseDn = baseDn
+        it.scope = scopeName(scope)
+        it.filter = filter
+        it.attributes = attributesText
+        it.sizeLimit = sizeLimit
+        it.includeOperational = includeOperational
+    }
+
     companion object {
         fun parseAttributes(text: String, includeOperational: Boolean): List<String> {
             val attributes = text.split(',', ' ').map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
@@ -67,18 +99,29 @@ data class SearchParams(
             return SearchParams(
                 config.id, config.displayName, saved.baseDn, scopeOf(saved.scope), saved.filter,
                 parseAttributes(saved.attributes, saved.includeOperational), saved.sizeLimit, saved.includeOperational,
+                saved.name,
             )
         }
     }
 }
 
-class SearchDialog(private val project: Project, initialConfigId: String?, initialBaseDn: String?) : DialogWrapper(project, true) {
+/**
+ * Search parameters dialog. With [initial] (e.g. "Edit Search" in a results tab) every field is pre-filled from it.
+ */
+class SearchDialog(
+    private val project: Project,
+    initialConfigId: String?,
+    initialBaseDn: String?,
+    private val initial: SearchParams? = null,
+) : DialogWrapper(project, true) {
     private val settings = LdapSettings.getInstance()
     private val scope = LdapProjectService.getInstance(project).childScope(disposable)
     private var schemaJob: Job? = null
 
     private val savedCombo = ComboBox<Any>().apply {
-        renderer = SimpleListCellRenderer.create("") { (it as? SavedSearch)?.name ?: "<none>" }
+        renderer = SimpleListCellRenderer.create("") { item ->
+            (item as? SavedSearch)?.let { "${it.name} — ${settings.find(it.configId)?.displayName ?: "missing connection"}" } ?: "<none>"
+        }
     }
     private val connectionCombo = ComboBox(settings.connections.toTypedArray()).apply {
         renderer = SimpleListCellRenderer.create("") { it.displayName }
@@ -126,8 +169,10 @@ class SearchDialog(private val project: Project, initialConfigId: String?, initi
     }
 
     init {
-        title = "LDAP Search"
-        reloadSavedSearches(null)
+        title = if (initial != null) "Edit LDAP Search" else "LDAP Search"
+        setOKButtonText("Search")
+        reloadSavedSearches(initial?.savedName)
+        initial?.let(::apply)
         savedCombo.addActionListener { (savedCombo.selectedItem as? SavedSearch)?.let(::apply) }
         connectionCombo.addActionListener { loadSchema() }
         init()
@@ -183,25 +228,16 @@ class SearchDialog(private val project: Project, initialConfigId: String?, initi
         operationalBox.isSelected = saved.includeOperational
     }
 
+    private fun apply(params: SearchParams) = apply(params.toSavedSearch(params.savedName.orEmpty()))
+
     private fun saveSearch() {
         doValidate()?.let {
             Messages.showErrorDialog(contentPanel, it.message, "Save Search")
             return
         }
         val current = savedCombo.selectedItem as? SavedSearch
-        val name = Messages.showInputDialog(contentPanel, "Name:", "Save Search", null, current?.name ?: filterField.text.trim(), null)
-            ?.trim()?.takeIf { it.isNotEmpty() } ?: return
         val p = params
-        settings.saveSearch(SavedSearch().apply {
-            this.name = name
-            configId = p.configId
-            baseDn = p.baseDn
-            scope = SearchParams.scopeName(p.scope)
-            filter = p.filter
-            attributes = attributesField.text.trim()
-            sizeLimit = p.sizeLimit
-            includeOperational = p.includeOperational
-        })
+        val name = SavedSearchPrompt.save(contentPanel, p.toSavedSearch("", attributesField.text.trim()), current?.name, p.filter) ?: return
         reloadSavedSearches(name)
     }
 
@@ -214,6 +250,9 @@ class SearchDialog(private val project: Project, initialConfigId: String?, initi
                 .onSuccess { filterField.schema = it }
         }
     }
+
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
 
     override fun doValidate(): ValidationInfo? {
         if (connectionCombo.selectedItem == null) return ValidationInfo("Select a connection", connectionCombo)
@@ -237,7 +276,7 @@ class SearchDialog(private val project: Project, initialConfigId: String?, initi
     val params: SearchParams
         get() {
             val config = connectionCombo.selectedItem as LdapConnectionConfig
-            return SearchParams(
+            val params = SearchParams(
                 configId = config.id,
                 connectionName = config.displayName,
                 baseDn = baseDnField.text.trim(),
@@ -251,5 +290,8 @@ class SearchDialog(private val project: Project, initialConfigId: String?, initi
                 sizeLimit = sizeLimitSpinner.number,
                 includeOperational = operationalBox.isSelected,
             )
+            // Keep the saved search name only while the fields still match it.
+            val saved = (savedCombo.selectedItem as? SavedSearch)?.let(SearchParams::of)
+            return if (saved != null && saved.sameQuery(params)) params.copy(savedName = saved.savedName) else params
         }
 }

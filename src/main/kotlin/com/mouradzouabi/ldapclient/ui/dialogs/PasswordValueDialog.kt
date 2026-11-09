@@ -97,6 +97,9 @@ class PasswordValueDialog(project: Project, private val attribute: String, priva
         confirmField.echoChar = 0.toChar()
     }
 
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
+
     override fun doValidate(): ValidationInfo? {
         if (newField.password.isEmpty()) return ValidationInfo("Enter a password", newField)
         if (!newField.password.contentEquals(confirmField.password)) return ValidationInfo("Passwords do not match", confirmField)

@@ -39,9 +39,11 @@ Every directory operation runs in the background, so the UI never freezes.
 ### Search
 - **Search…** from the toolbar or a node's context menu. Options: base / one-level / subtree scope, attribute list, and size limit (0 = unlimited).
 - The filter field has syntax highlighting and completes attribute and object class names from the server schema (Ctrl+Space).
-- The last 20 filters are remembered. Searches can be **saved** and run again from the **Saved Searches** dropdown (star icon) of the LDAP toolbar.
-- Results stream into a spreadsheet-style table in a tab of the **LDAP Results** tool window (bottom). Stopping a search abandons it on the server.
+- The last 20 filters are remembered. Searches can be **saved** (from the dialog or the results tab) and run again from the **Saved Searches** dropdown (list icon) of the LDAP toolbar, grouped by connection. Saving under an existing name asks before replacing it.
+- Results stream into a spreadsheet-style table in a tab of the **LDAP Results** tool window (bottom). A header shows the connection, base, scope and filter. Stopping a search abandons it on the server.
+- Running a saved search again reuses its tab, which is titled with the saved name. Running the same unsaved query also reuses its tab.
 - On the results you can:
+  - **Edit Search…** to change the query and run it again in the same tab, or **Save Search…**
   - **Open Entry** and **Copy DN**, and **Rerun** or **Stop** the search
   - **Export to LDIF…**
   - **Bulk Modify…**: add, replace or delete values of one attribute on the selected or all entries (writable connections only). After a preview, the generated LDIF script runs directly; you can also open it in an editor first.

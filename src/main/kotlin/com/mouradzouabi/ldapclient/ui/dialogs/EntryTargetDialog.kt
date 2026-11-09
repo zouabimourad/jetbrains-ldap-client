@@ -46,6 +46,9 @@ class CompareWithDialog(project: Project, configId: String, private val dn: Stri
 
     override fun getPreferredFocusedComponent(): JComponent = dnField
 
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
+
     override fun doValidate(): ValidationInfo? = when {
         connection.selectedItem == null -> ValidationInfo("Select a connection", connection)
         LdapDn.parse(targetDn) == null -> ValidationInfo("Invalid DN", dnField)
@@ -90,6 +93,9 @@ class CopyMoveDialog(project: Project, private val configId: String, private val
     }.apply { preferredSize = JBUI.size(620, preferredSize.height) }
 
     override fun getPreferredFocusedComponent(): JComponent = parentField
+
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
 
     override fun doValidate(): ValidationInfo? {
         if (connection.selectedItem == null) return ValidationInfo("Select a connection", connection)

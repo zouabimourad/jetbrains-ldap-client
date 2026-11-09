@@ -45,6 +45,9 @@ class LdifRunDialog(project: Project, private val sourceTitle: String, preferred
         row { cell(dryRunBox) }
     }
 
+    // Kotlin UI DSL dialogs don't re-validate by default, which would keep OK disabled after a fixed error.
+    override fun continuousValidation() = true
+
     override fun doValidate(): ValidationInfo? {
         val config = connectionCombo.selectedItem as? LdapConnectionConfig
             ?: return ValidationInfo("Select a connection", connectionCombo)
