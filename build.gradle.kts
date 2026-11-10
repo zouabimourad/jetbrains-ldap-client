@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
@@ -38,6 +39,8 @@ kotlin {
     jvmToolchain(25)
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_25)
+        // Use interface default methods directly instead of generating bridges to platform APIs.
+        jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
         // Align with the Kotlin stdlib bundled in the target IDE.
         apiVersion.set(KotlinVersion.KOTLIN_2_2)
         languageVersion.set(KotlinVersion.KOTLIN_2_2)

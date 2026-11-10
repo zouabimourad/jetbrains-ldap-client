@@ -5,7 +5,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
@@ -20,7 +20,7 @@ class LdifRunDialog(project: Project, private val sourceTitle: String, preferred
     private val properties = PropertiesComponent.getInstance()
     private val connections = LdapSettings.getInstance().connections
     private val connectionCombo = ComboBox(connections.toTypedArray()).apply {
-        renderer = SimpleListCellRenderer.create("") { it.displayName + if (it.readOnly) " (read-only)" else "" }
+        renderer = textListCellRenderer { it.displayName + if (it.readOnly) " (read-only)" else "" }
         val wanted = preferredConfigId ?: properties.getValue(LAST_CONNECTION)
         connections.indexOfFirst { it.id == wanted }.takeIf { it >= 0 }?.let { selectedIndex = it }
     }

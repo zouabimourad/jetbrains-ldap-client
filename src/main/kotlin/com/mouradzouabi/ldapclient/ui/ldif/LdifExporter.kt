@@ -4,7 +4,7 @@ import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.platform.ide.progress.withBackgroundProgress
-import com.intellij.platform.util.progress.reportRawProgress
+import com.mouradzouabi.ldapclient.ui.reportProgressUpdates
 import com.mouradzouabi.ldapclient.core.LdapErrors
 import com.mouradzouabi.ldapclient.core.LdifExport
 import com.mouradzouabi.ldapclient.model.LdapSettings
@@ -37,11 +37,11 @@ object LdifExporter {
             try {
                 val session = LdapConnectionManager.getInstance().connect(configId)
                 val summary = withBackgroundProgress(project, "Exporting LDIF from $dn", cancellable = true) {
-                    reportRawProgress { reporter ->
+                    reportProgressUpdates { progress ->
                         withContext(Dispatchers.IO) {
                             Files.newOutputStream(file).buffered().use { out ->
                                 LdifExport.export(session, dn, options.copy(header = header), out) { count ->
-                                    reporter.details("$count entries written")
+                                    progress.update("$count entries written")
                                 }
                             }
                         }

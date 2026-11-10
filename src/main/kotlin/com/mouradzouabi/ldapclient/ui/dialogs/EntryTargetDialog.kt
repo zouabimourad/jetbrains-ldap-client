@@ -4,7 +4,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.AlignX
@@ -20,7 +20,7 @@ import javax.swing.JComponent
 private fun connectionCombo(selectedId: String, writableOnly: Boolean = false): ComboBox<LdapConnectionConfig> {
     val configs = LdapSettings.getInstance().connections.filter { !writableOnly || !it.readOnly || it.id == selectedId }
     return ComboBox(configs.toTypedArray()).apply {
-        renderer = SimpleListCellRenderer.create("") { it.displayName + if (it.readOnly) " (read-only)" else "" }
+        renderer = textListCellRenderer { it.displayName + if (it.readOnly) " (read-only)" else "" }
         configs.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }?.let { selectedIndex = it }
     }
 }

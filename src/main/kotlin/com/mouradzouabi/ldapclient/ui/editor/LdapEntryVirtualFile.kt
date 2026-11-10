@@ -1,6 +1,7 @@
 package com.mouradzouabi.ldapclient.ui.editor
 
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.testFramework.LightVirtualFile
 import com.mouradzouabi.ldapclient.core.LdapDn
@@ -25,7 +26,7 @@ class LdapEntryVirtualFile(
             val existing = manager.openFiles.filterIsInstance<LdapEntryVirtualFile>()
                 .firstOrNull { it.configId == configId && LdapDn.same(it.dn, dn) }
             val name = LdapSettings.getInstance().find(configId)?.displayName ?: configId
-            manager.openFile(existing ?: LdapEntryVirtualFile(configId, name, dn), true)
+            OpenFileDescriptor(project, existing ?: LdapEntryVirtualFile(configId, name, dn)).navigate(true)
         }
     }
 }

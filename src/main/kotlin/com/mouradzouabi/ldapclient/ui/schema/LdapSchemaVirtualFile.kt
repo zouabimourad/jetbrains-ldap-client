@@ -1,6 +1,7 @@
 package com.mouradzouabi.ldapclient.ui.schema
 
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.testFramework.LightVirtualFile
 import com.mouradzouabi.ldapclient.core.SchemaKind
@@ -15,6 +16,10 @@ class LdapSchemaVirtualFile(val configId: String, val connectionName: String) :
         isWritable = false
     }
 
+    /** Element to select once the editor is created; consumed by [LdapSchemaEditor]. */
+    @Volatile
+    var requestedSelection: Pair<SchemaKind, String>? = null
+
     override fun getPath(): String = "ldap://$connectionName/cn=schema"
 
     companion object {
@@ -23,8 +28,13 @@ class LdapSchemaVirtualFile(val configId: String, val connectionName: String) :
             val manager = FileEditorManager.getInstance(project)
             val file = manager.openFiles.filterIsInstance<LdapSchemaVirtualFile>().firstOrNull { it.configId == configId }
                 ?: LdapSchemaVirtualFile(configId, LdapSettings.getInstance().find(configId)?.displayName ?: configId)
-            val editors = manager.openFile(file, true)
-            if (kind != null && name != null) editors.filterIsInstance<LdapSchemaEditor>().firstOrNull()?.select(kind, name)
+            file.requestedSelection = if (kind != null && name != null) kind to name else null
+            OpenFileDescriptor(project, file).navigate(true)
+            // The editor already existed: select in it directly.
+            file.requestedSelection?.let { (k, n) ->
+                file.requestedSelection = null
+                manager.getEditors(file).filterIsInstance<LdapSchemaEditor>().firstOrNull()?.select(k, n)
+            }
         }
     }
 }

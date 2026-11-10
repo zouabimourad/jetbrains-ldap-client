@@ -1,6 +1,6 @@
 package com.mouradzouabi.ldapclient.ui.dialogs
 
-import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
@@ -76,7 +76,7 @@ class BulkModifyDialog(
             if (doValidateAll().isNotEmpty()) return
             val file = LightVirtualFile("bulk-modify.ldif", LdifFileType, script())
             close(CANCEL_EXIT_CODE)
-            FileEditorManager.getInstance(project).openFile(file, true)
+            OpenFileDescriptor(project, file).navigate(true)
         }
     })
 

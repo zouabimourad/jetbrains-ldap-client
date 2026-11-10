@@ -5,7 +5,6 @@ import com.intellij.diff.DiffManager
 import com.intellij.diff.requests.SimpleDiffRequest
 import com.intellij.openapi.project.Project
 import com.intellij.platform.ide.progress.withBackgroundProgress
-import com.intellij.platform.util.progress.reportRawProgress
 import com.mouradzouabi.ldapclient.core.EntryTemplate
 import com.mouradzouabi.ldapclient.core.EntryText
 import com.mouradzouabi.ldapclient.core.LdapDn
@@ -115,7 +114,7 @@ object EntryTools {
             }
             val copy = SubtreeCopy(source, target, dn, targetDn, dialog.recursive, dialog.conflictPolicy, dialog.stopAtFirstError)
             val result = withBackgroundProgress(project, "${verb.replaceFirstChar { it.uppercase() }}ing $dn", cancellable = true) {
-                reportRawProgress { reporter -> copy.run { count, current -> reporter.details("$count entries — $current") } }
+                reportProgressUpdates { progress -> copy.run { count, current -> progress.update("$count entries — $current") } }
             }
             LdapEvents.fire { it.childrenChanged(targetId, targetParent) }
             var deleted = false

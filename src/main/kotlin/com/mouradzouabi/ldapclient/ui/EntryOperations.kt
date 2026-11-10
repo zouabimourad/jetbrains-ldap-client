@@ -5,7 +5,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.InputValidatorEx
 import com.intellij.openapi.ui.Messages
 import com.intellij.platform.ide.progress.withBackgroundProgress
-import com.intellij.platform.util.progress.reportRawProgress
 import com.unboundid.ldap.sdk.LDAPException
 import com.unboundid.ldap.sdk.ResultCode
 import com.mouradzouabi.ldapclient.core.LdapDn
@@ -76,10 +75,9 @@ object EntryOperations {
                     }
                     if (!recursive) return@launch
                     withBackgroundProgress(project, "Deleting subtree $dn", cancellable = true) {
-                        reportRawProgress { reporter ->
+                        reportProgressUpdates { progress ->
                             session.delete(dn, recursive = true) { done, total ->
-                                reporter.fraction(done.toDouble() / total)
-                                reporter.details("$done / $total entries")
+                                progress.update("$done / $total entries", done.toDouble() / total)
                             }
                         }
                     }

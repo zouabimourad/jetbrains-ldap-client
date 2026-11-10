@@ -11,7 +11,7 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.JBIntSpinner
-import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import com.intellij.ui.TextFieldWithStoredHistory
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBTextField
@@ -119,12 +119,12 @@ class SearchDialog(
     private var schemaJob: Job? = null
 
     private val savedCombo = ComboBox<Any>().apply {
-        renderer = SimpleListCellRenderer.create("") { item ->
+        renderer = textListCellRenderer { item ->
             (item as? SavedSearch)?.let { "${it.name} — ${settings.find(it.configId)?.displayName ?: "missing connection"}" } ?: "<none>"
         }
     }
     private val connectionCombo = ComboBox(settings.connections.toTypedArray()).apply {
-        renderer = SimpleListCellRenderer.create("") { it.displayName }
+        renderer = textListCellRenderer { it.displayName }
         settings.connections.firstOrNull { it.id == initialConfigId }?.let { c ->
             selectedIndex = (0 until itemCount).first { getItemAt(it).id == c.id }
         }

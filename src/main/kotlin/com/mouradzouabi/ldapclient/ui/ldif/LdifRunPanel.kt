@@ -12,7 +12,7 @@ import com.intellij.openapi.project.DumbAwareToggleAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.platform.ide.progress.withBackgroundProgress
-import com.intellij.platform.util.progress.reportRawProgress
+import com.mouradzouabi.ldapclient.ui.reportProgressUpdates
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.ColoredTableCellRenderer
 import com.intellij.ui.DoubleClickListener
@@ -179,15 +179,14 @@ class LdifRunPanel(
             try {
                 val session = LdapConnectionManager.getInstance().connect(configId)
                 val s = withBackgroundProgress(project, "$verb LDIF ${source.title} on $connectionName", cancellable = true) {
-                    reportRawProgress { reporter ->
+                    reportProgressUpdates { progress ->
                         withContext(Dispatchers.IO) {
                             val (raw, size) = source.open()
                             val reader = CountingReader(raw)
                             LdifScript.run(session, reader, options) { result ->
                                 queue.add(result)
                                 if (result.status == LdifStatus.OK) record(changes, result)
-                                if (size > 0) reporter.fraction((reader.count.toDouble() / size).coerceIn(0.0, 1.0))
-                                reporter.details("${result.index + 1} records")
+                                progress.update("${result.index + 1} records", if (size > 0) reader.count.toDouble() / size else null)
                             }
                         }
                     }

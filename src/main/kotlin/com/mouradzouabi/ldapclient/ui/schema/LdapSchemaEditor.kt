@@ -59,7 +59,7 @@ class LdapSchemaEditor(private val project: Project, private val file: LdapSchem
     private val panel = JPanel(BorderLayout())
     private val history = ArrayDeque<Pair<SchemaKind, String>>()
     private var index: SchemaIndex? = null
-    private var pending: Pair<SchemaKind, String>? = null
+    private var pending: Pair<SchemaKind, String>? = file.requestedSelection.also { file.requestedSelection = null }
     private var loadJob: Job? = null
 
     init {
